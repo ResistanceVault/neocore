@@ -6,7 +6,7 @@ PROJECTNAME = $(PROJECT)
 
 NEOBUILDTEMP = $(shell cygpath -u $(TEMP))/neocore/$(PROJECTNAME)
 
-FILECUE = $(shell cygpath -u $(NEOBUILDTEMP)\$(PROJECTNAME).cue)
+FILECUE = $(PROJECTNAME).cue
 FILEISO = $(shell cygpath -u $(NEOBUILDTEMP)\$(PROJECTNAME).iso)
 FILEZIP = $(shell cygpath -u $(NEOBUILDTEMP)\$(PROJECTNAME).zip)
 ISONAME = $(PROJECTNAME).iso
@@ -70,15 +70,14 @@ SRC_C= $(wildcard *.c)
 
 OBJS = $(NEOBUILDTEMP)/crt0_$(OUTPUT).o
 
-ifneq ("$(wildcard $(FILESPRITE).cd)","")
+ifneq ("$(wildcard chardata.xml)","")
 	OBJS := $(OBJS) $(NEOBUILDTEMP)/palettes.o
 	OBJS := $(OBJS) $(NEOBUILDTEMP)/maps.o
 endif
 
-#OBJS += $(NEOBUILDTEMP)/$(SRC_C)$(SRC_C:.c=.o)
 OBJS += $(patsubst %.c,$(NEOBUILDTEMP)/%.o,$(wildcard *.c))
 
-LIBS = -lneocore -lDATlib -lprocess -lc -lgcc
+LIBS = -lneocore -lDATlib -lmath -lprocess -lc -lgcc
 
 #####################
 # Compilation Flags #
@@ -98,7 +97,7 @@ FIXFILES = $(BASEDIR)/src/shared/fix_font.bmp
 ##############
 # Make rules #
 ##############
-
+all: init $(FILESPRITE).cd $(FILEPRG)
 $(FILEPRG) : $(NEOBUILDTEMP)/$(PROJECTNAME).o
 	$(OBJC) -O binary $< $@
 
@@ -115,13 +114,19 @@ $(NEOBUILDTEMP)/%.o: %.s
 init:
 	$(MKDIR) -p $(NEOBUILDTEMP)
 
-sprite:
-	BuildChar.exe "chardata.xml"
-	CharSplit.exe char.bin -cd $(shell cygpath -w $(FILESPRITE))
+sprite: $(FILESPRITE).cd
+
+dbg:
+	echo $(OBJC)
+	echo $(OBJS)
+
+$(FILESPRITE).cd:
+	if exist chardata.xml BuildChar.exe "chardata.xml"
+	if exist char.bin CharSplit.exe char.bin -cd $(shell cygpath -w $(FILESPRITE))
 	$(RM) -f char.bin
 
 run: zip
-# TODO raine parametric position
+# todo (minor) - raine parametric position
 	powershell -ExecutionPolicy Bypass -File ..\..\scripts\raine-start.ps1 $(shell cygpath -w $(RAINE)) $(shell cygpath -w $(FILEZIP))
 
 zip: $(FILEPRG) iso
@@ -140,7 +145,7 @@ ifneq ("$(wildcard $(FILESPRITE).cd)","")
 endif
 	$(MKISOFS) -o $(FILEISO) -pad $(NEOBUILDTEMP)/iso
 
-cue:
+add-cue:
 	echo CATALOG 0000000000000 > $(FILECUE)
 	echo FILE "$(ISONAME)" BINARY >> $(FILECUE)
 	echo TRACK 01 MODE1/2048 >> $(FILECUE)
@@ -160,7 +165,7 @@ clean:
 	$(RM) -f maps.s
 	$(RM) -f externs.h
 
-clean-build: clean init sprite $(FILEPRG)
-
-hot-reload:
+serve:
 	powershell -ExecutionPolicy Bypass -File ..\..\scripts\neocore-hot-reload.ps1 .
+
+dist:
